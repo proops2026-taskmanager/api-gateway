@@ -1,4 +1,3 @@
-import cors from 'cors';
 import express from 'express';
 import morgan from 'morgan';
 import { jwtMiddleware } from './jwt';
@@ -6,10 +5,21 @@ import { createProxyRouter } from './proxy';
 
 const app = express();
 
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
-  credentials: true,
-}));
+// Parse JSON body
+app.use(express.json());
+
+// CORS middleware for frontend-service on port 3000
+const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000';
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', corsOrigin);
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 app.use(morgan('combined'));
 
 app.get('/health', (_req, res) => {
