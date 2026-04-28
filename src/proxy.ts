@@ -1,143 +1,181 @@
-import { createProxyMiddleware } from 'http-proxy-middleware';
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { jwtMiddleware } from './middleware/auth';
 
 export function createProxyRouter(): Router {
   const router = Router();
 
-  const userServiceUrl = process.env.USER_SERVICE_URL || 'http://localhost:3001';
-  const taskServiceUrl = process.env.TASK_SERVICE_URL || 'http://localhost:3002';
+  const userServiceUrl = () => process.env.USER_SERVICE_URL || 'http://localhost:3001';
+  const taskServiceUrl = () => process.env.TASK_SERVICE_URL || 'http://localhost:3002';
 
-  // Public: /api/users, /api/auth → user-service (strip /api prefix)
-  // Also route POST /users for frontend compatibility
-  router.use(
-    createProxyMiddleware({
-      pathFilter: ['/api/users', '/api/auth'],
-      target: userServiceUrl,
-      changeOrigin: true,
-      pathRewrite: { '^/api': '' },
-    })
-  );
+  // ─── User-service public routes ────────────────────────────────────────────
 
-  // Also handle /users (POST only) - frontend uses this path
-  router.post('/users', async (req, res, next) => {
-    const userServiceUrl = process.env.USER_SERVICE_URL || 'http://localhost:3001';
+  async function registerUser(req: Request, res: Response, next: NextFunction) {
     try {
-      const response = await fetch(`${userServiceUrl}/users`, {
+      const response = await fetch(`${userServiceUrl()}/users`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(req.body),
       });
-      const data = await response.json();
-      res.status(response.status).json(data);
-    } catch (error) {
-      next(error);
-    }
-  });
+      res.status(response.status).json(await response.json());
+    } catch (error) { next(error); }
+  }
 
-  // Also handle GET /users (with JWT) - frontend uses this path for listing users
-  router.get('/users', jwtMiddleware, async (req, res, next) => {
-    const userServiceUrl = process.env.USER_SERVICE_URL || 'http://localhost:3001';
+  async function loginUser(req: Request, res: Response, next: NextFunction) {
     try {
-      // Forward the X-User-Id and X-User-Role headers
-      const response = await fetch(`${userServiceUrl}/users`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-User-Id': req.headers['x-user-id'] as string || '',
-          'X-User-Role': req.headers['x-user-role'] as string || '',
-        },
+      const response = await fetch(`${userServiceUrl()}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req.body),
       });
-      const data = await response.json();
-      res.status(response.status).json(data);
-    } catch (error) {
-      next(error);
-    }
-  });
+      res.status(response.status).json(await response.json());
+    } catch (error) { next(error); }
+  }
 
-  // Also handle /tasks endpoints - frontend uses this path
-  router.get('/tasks', jwtMiddleware, async (req, res, next) => {
-    const taskServiceUrl = process.env.TASK_SERVICE_URL || 'http://localhost:3002';
+  // Both /api/users (via ingress) and /users (docker-compose) work
+  router.post('/api/users', registerUser);
+  router.post('/users', registerUser);
+
+  router.post('/api/auth/login', loginUser);
+  router.post('/auth/login', loginUser);
+
+  // ─── User-service protected routes ─────────────────────────────────────────
+
+  async function listUsers(req: Request, res: Response, next: NextFunction) {
     try {
-      const response = await fetch(`${taskServiceUrl}/tasks?${new URLSearchParams(req.query as Record<string, string>)}`, {
+      const response = await fetch(`${userServiceUrl()}/users`, {
         method: 'GET',
         headers: {
           'X-User-Id': req.headers['x-user-id'] as string || '',
           'X-User-Role': req.headers['x-user-role'] as string || '',
         },
       });
-      const data = await response.json();
-      res.status(response.status).json(data);
-    } catch (error) {
-      next(error);
-    }
-  });
+      res.status(response.status).json(await response.json());
+    } catch (error) { next(error); }
+  }
 
-  router.post('/tasks', jwtMiddleware, async (req, res, next) => {
-    const taskServiceUrl = process.env.TASK_SERVICE_URL || 'http://localhost:3002';
+  async function getUser(req: Request, res: Response, next: NextFunction) {
     try {
-      const response = await fetch(`${taskServiceUrl}/tasks`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-User-Id': req.headers['x-user-id'] as string || '',
-          'X-User-Role': req.headers['x-user-role'] as string || '',
-        },
-        body: JSON.stringify(req.body),
-      });
-      const data = await response.json();
-      res.status(response.status).json(data);
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  router.get('/tasks/:id', jwtMiddleware, async (req, res, next) => {
-    const taskServiceUrl = process.env.TASK_SERVICE_URL || 'http://localhost:3002';
-    try {
-      const response = await fetch(`${taskServiceUrl}/tasks/${req.params.id}`, {
+      const response = await fetch(`${userServiceUrl()}/users/${req.params.id}`, {
         method: 'GET',
         headers: {
           'X-User-Id': req.headers['x-user-id'] as string || '',
           'X-User-Role': req.headers['x-user-role'] as string || '',
         },
       });
-      const data = await response.json();
-      res.status(response.status).json(data);
-    } catch (error) {
-      next(error);
-    }
-  });
+      res.status(response.status).json(await response.json());
+    } catch (error) { next(error); }
+  }
 
-  // Also handle /auth/login - frontend uses this path
-  router.post('/auth/login', async (req, res, next) => {
-    const userServiceUrl = process.env.USER_SERVICE_URL || 'http://localhost:3001';
+  router.get('/api/users', jwtMiddleware, listUsers);
+  router.get('/users', jwtMiddleware, listUsers);
+
+  router.get('/api/users/:id', jwtMiddleware, getUser);
+  router.get('/users/:id', jwtMiddleware, getUser);
+
+  // ─── Task-service protected routes ─────────────────────────────────────────
+
+  async function listTasks(req: Request, res: Response, next: NextFunction) {
     try {
-      const response = await fetch(`${userServiceUrl}/auth/login`, {
+      const qs = new URLSearchParams(req.query as Record<string, string>).toString();
+      const response = await fetch(`${taskServiceUrl()}/tasks${qs ? `?${qs}` : ''}`, {
+        method: 'GET',
+        headers: {
+          'X-User-Id': req.headers['x-user-id'] as string || '',
+          'X-User-Role': req.headers['x-user-role'] as string || '',
+        },
+      });
+      res.status(response.status).json(await response.json());
+    } catch (error) { next(error); }
+  }
+
+  async function createTask(req: Request, res: Response, next: NextFunction) {
+    try {
+      const response = await fetch(`${taskServiceUrl()}/tasks`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-User-Id': req.headers['x-user-id'] as string || '',
+          'X-User-Role': req.headers['x-user-role'] as string || '',
         },
         body: JSON.stringify(req.body),
       });
-      const data = await response.json();
-      res.status(response.status).json(data);
-    } catch (error) {
-      next(error);
-    }
-  });
+      res.status(response.status).json(await response.json());
+    } catch (error) { next(error); }
+  }
 
-  // Protected: /api/tasks → task-service (strip /api prefix)
-  router.use(
-    createProxyMiddleware({
-      pathFilter: '/api/tasks',
-      target: taskServiceUrl,
-      changeOrigin: true,
-      pathRewrite: { '^/api': '' },
-    })
-  );
+  async function getTask(req: Request, res: Response, next: NextFunction) {
+    try {
+      const response = await fetch(`${taskServiceUrl()}/tasks/${req.params.id}`, {
+        method: 'GET',
+        headers: {
+          'X-User-Id': req.headers['x-user-id'] as string || '',
+          'X-User-Role': req.headers['x-user-role'] as string || '',
+        },
+      });
+      res.status(response.status).json(await response.json());
+    } catch (error) { next(error); }
+  }
+
+  async function updateTaskStatus(req: Request, res: Response, next: NextFunction) {
+    try {
+      const response = await fetch(`${taskServiceUrl()}/tasks/${req.params.id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Id': req.headers['x-user-id'] as string || '',
+          'X-User-Role': req.headers['x-user-role'] as string || '',
+        },
+        body: JSON.stringify(req.body),
+      });
+      res.status(response.status).json(await response.json());
+    } catch (error) { next(error); }
+  }
+
+  async function deleteTask(req: Request, res: Response, next: NextFunction) {
+    try {
+      const response = await fetch(`${taskServiceUrl()}/tasks/${req.params.id}`, {
+        method: 'DELETE',
+        headers: {
+          'X-User-Id': req.headers['x-user-id'] as string || '',
+          'X-User-Role': req.headers['x-user-role'] as string || '',
+        },
+      });
+      res.status(response.status).send();
+    } catch (error) { next(error); }
+  }
+
+  async function addComment(req: Request, res: Response, next: NextFunction) {
+    try {
+      const response = await fetch(`${taskServiceUrl()}/tasks/${req.params.id}/comments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Id': req.headers['x-user-id'] as string || '',
+          'X-User-Role': req.headers['x-user-role'] as string || '',
+        },
+        body: JSON.stringify(req.body),
+      });
+      res.status(response.status).json(await response.json());
+    } catch (error) { next(error); }
+  }
+
+  router.get('/api/tasks', jwtMiddleware, listTasks);
+  router.get('/tasks', jwtMiddleware, listTasks);
+
+  router.post('/api/tasks', jwtMiddleware, createTask);
+  router.post('/tasks', jwtMiddleware, createTask);
+
+  router.get('/api/tasks/:id', jwtMiddleware, getTask);
+  router.get('/tasks/:id', jwtMiddleware, getTask);
+
+  router.patch('/api/tasks/:id/status', jwtMiddleware, updateTaskStatus);
+  router.patch('/tasks/:id/status', jwtMiddleware, updateTaskStatus);
+
+  router.delete('/api/tasks/:id', jwtMiddleware, deleteTask);
+  router.delete('/tasks/:id', jwtMiddleware, deleteTask);
+
+  router.post('/api/tasks/:id/comments', jwtMiddleware, addComment);
+  router.post('/tasks/:id/comments', jwtMiddleware, addComment);
 
   return router;
 }
