@@ -1,6 +1,15 @@
 import { createProxyMiddleware } from 'http-proxy-middleware';
-import { Router, Request, Response } from 'express';
 import { IncomingMessage } from 'http';
+import { Router, Request, Response, NextFunction } from 'express';
+import { jwtMiddleware } from './middleware/auth';
+
+function requireJwt(req: Request, res: Response, next: NextFunction): void {
+  if (req.path.startsWith('/api/tasks')) {
+    jwtMiddleware(req, res, next);
+  } else {
+    next();
+  }
+}
 
 export function createProxyRouter(): Router {
   const router = Router();
@@ -14,6 +23,9 @@ export function createProxyRouter(): Router {
     proxyRes.headers['access-control-allow-origin'] = origin;
     proxyRes.headers['access-control-allow-credentials'] = 'true';
   };
+
+  // Apply JWT to task routes without stripping the path prefix
+  router.use(requireJwt);
 
   // /api/users → user-service/users, /api/auth → user-service/auth
   router.use(createProxyMiddleware({
