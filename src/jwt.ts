@@ -2,8 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
 const PUBLIC_ROUTES: Array<{ method: string; path: string }> = [
-  { method: 'POST', path: '/api/users' },
-  { method: 'POST', path: '/api/auth/login' },
+  { method: 'POST', path: '/users' },
+  { method: 'POST', path: '/auth/login' },
 ];
 
 function isPublic(req: Request): boolean {

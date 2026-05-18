@@ -1,15 +1,6 @@
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { IncomingMessage } from 'http';
-import { Router, Request, Response, NextFunction } from 'express';
-import { jwtMiddleware } from './middleware/auth';
-
-function requireJwt(req: Request, res: Response, next: NextFunction): void {
-  if (req.path.startsWith('/api/tasks')) {
-    jwtMiddleware(req, res, next);
-  } else {
-    next();
-  }
-}
+import { Router, Request } from 'express';
 
 export function createProxyRouter(): Router {
   const router = Router();
@@ -24,24 +15,20 @@ export function createProxyRouter(): Router {
     proxyRes.headers['access-control-allow-credentials'] = 'true';
   };
 
-  // Apply JWT to task routes without stripping the path prefix
-  router.use(requireJwt);
-
-  // /api/users → user-service/users, /api/auth → user-service/auth
+  // /users → user-service/users, /auth → user-service/auth
+  // (Ingress strips /api prefix before requests reach api-gateway)
   router.use(createProxyMiddleware({
-    pathFilter: ['/api/users', '/api/auth'],
+    pathFilter: ['/users', '/auth'],
     target: userServiceUrl,
     changeOrigin: true,
-    pathRewrite: { '^/api': '' },
     on: { proxyRes: addCorsHeaders },
   }));
 
-  // /api/tasks → task-service/tasks
+  // /tasks → task-service/tasks
   router.use(createProxyMiddleware({
-    pathFilter: '/api/tasks',
+    pathFilter: '/tasks',
     target: taskServiceUrl,
     changeOrigin: true,
-    pathRewrite: { '^/api': '' },
     on: { proxyRes: addCorsHeaders },
   }));
 
