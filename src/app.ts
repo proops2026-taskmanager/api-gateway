@@ -16,7 +16,7 @@ app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok', service: 'api-gateway' });
 });
 
-app.use(jwtMiddleware);
-app.use(createProxyRouter());
+app.use('/api', jwtMiddleware);
+app.use('/api', createProxyRouter());
 
 export default app;

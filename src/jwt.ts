@@ -1,15 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-const PUBLIC_ROUTES: Array<{ method: string; path: string }> = [
-  { method: 'POST', path: '/users' },
-  { method: 'POST', path: '/auth/login' },
-];
-
 function isPublic(req: Request): boolean {
-  return PUBLIC_ROUTES.some(
-    (r) => r.method === req.method && req.path === r.path
-  );
+  if (req.method === 'POST' && req.path === '/users') return true;
+  if (req.method === 'POST' && req.path === '/auth/login') return true;
+  if (req.method === 'GET' && req.path.startsWith('/users/')) return true;
+  return false;
 }
 
 export function jwtMiddleware(req: Request, res: Response, next: NextFunction): void {
@@ -20,7 +16,7 @@ export function jwtMiddleware(req: Request, res: Response, next: NextFunction): 
 
   const authHeader = req.headers['authorization'];
   if (!authHeader?.startsWith('Bearer ')) {
-    res.status(401).json({ error: 'No token provided' });
+    res.status(401).json({ error: 'authorization header required' });
     return;
   }
 
@@ -34,11 +30,11 @@ export function jwtMiddleware(req: Request, res: Response, next: NextFunction): 
 
   try {
     const payload = jwt.verify(token, secret) as {
-      userId: string;
+      sub: string;
       role: string;
     };
 
-    req.headers['x-user-id'] = payload.userId;
+    req.headers['x-user-id'] = payload.sub;
     req.headers['x-user-role'] = payload.role;
     delete req.headers['authorization'];
 
