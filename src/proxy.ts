@@ -69,8 +69,8 @@ export function createProxyRouter(): Router {
   router.get('/api/users', jwtMiddleware, listUsers);
   router.get('/users', jwtMiddleware, listUsers);
 
-  router.get('/api/users/:id', jwtMiddleware, getUser);
-  router.get('/users/:id', jwtMiddleware, getUser);
+  router.get('/api/users/:id', getUser);
+  router.get('/users/:id', getUser);
 
   // ─── Task-service protected routes ─────────────────────────────────────────
 
