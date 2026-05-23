@@ -1,5 +1,4 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { jwtMiddleware } from './middleware/auth';
 
 export function createProxyRouter(): Router {
   const router = Router();
@@ -66,8 +65,8 @@ export function createProxyRouter(): Router {
     } catch (error) { next(error); }
   }
 
-  router.get('/api/users', jwtMiddleware, listUsers);
-  router.get('/users', jwtMiddleware, listUsers);
+  router.get('/api/users', listUsers);
+  router.get('/users', listUsers);
 
   router.get('/api/users/:id', getUser);
   router.get('/users/:id', getUser);
@@ -159,23 +158,23 @@ export function createProxyRouter(): Router {
     } catch (error) { next(error); }
   }
 
-  router.get('/api/tasks', jwtMiddleware, listTasks);
-  router.get('/tasks', jwtMiddleware, listTasks);
+  router.get('/api/tasks', listTasks);
+  router.get('/tasks', listTasks);
 
-  router.post('/api/tasks', jwtMiddleware, createTask);
-  router.post('/tasks', jwtMiddleware, createTask);
+  router.post('/api/tasks', createTask);
+  router.post('/tasks', createTask);
 
-  router.get('/api/tasks/:id', jwtMiddleware, getTask);
-  router.get('/tasks/:id', jwtMiddleware, getTask);
+  router.get('/api/tasks/:id', getTask);
+  router.get('/tasks/:id', getTask);
 
-  router.patch('/api/tasks/:id/status', jwtMiddleware, updateTaskStatus);
-  router.patch('/tasks/:id/status', jwtMiddleware, updateTaskStatus);
+  router.patch('/api/tasks/:id/status', updateTaskStatus);
+  router.patch('/tasks/:id/status', updateTaskStatus);
 
-  router.delete('/api/tasks/:id', jwtMiddleware, deleteTask);
-  router.delete('/tasks/:id', jwtMiddleware, deleteTask);
+  router.delete('/api/tasks/:id', deleteTask);
+  router.delete('/tasks/:id', deleteTask);
 
-  router.post('/api/tasks/:id/comments', jwtMiddleware, addComment);
-  router.post('/tasks/:id/comments', jwtMiddleware, addComment);
+  router.post('/api/tasks/:id/comments', addComment);
+  router.post('/tasks/:id/comments', addComment);
 
   return router;
 }
