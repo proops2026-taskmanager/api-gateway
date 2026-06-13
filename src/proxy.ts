@@ -5,6 +5,7 @@ export function createProxyRouter(): Router {
 
   const userServiceUrl = () => process.env.USER_SERVICE_URL || 'http://localhost:3001';
   const taskServiceUrl = () => process.env.TASK_SERVICE_URL || 'http://localhost:3002';
+  const notificationServiceUrl = () => process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3003';
 
   // ─── User-service public routes ────────────────────────────────────────────
 
@@ -143,6 +144,21 @@ export function createProxyRouter(): Router {
     } catch (error) { next(error); }
   }
 
+  async function editTask(req: Request, res: Response, next: NextFunction) {
+    try {
+      const response = await fetch(`${taskServiceUrl()}/tasks/${req.params.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Id': req.headers['x-user-id'] as string || '',
+          'X-User-Role': req.headers['x-user-role'] as string || '',
+        },
+        body: JSON.stringify(req.body),
+      });
+      res.status(response.status).json(await response.json());
+    } catch (error) { next(error); }
+  }
+
   async function addComment(req: Request, res: Response, next: NextFunction) {
     try {
       const response = await fetch(`${taskServiceUrl()}/tasks/${req.params.id}/comments`, {
@@ -153,6 +169,39 @@ export function createProxyRouter(): Router {
           'X-User-Role': req.headers['x-user-role'] as string || '',
         },
         body: JSON.stringify(req.body),
+      });
+      res.status(response.status).json(await response.json());
+    } catch (error) { next(error); }
+  }
+
+  // ─── Notification-service protected routes ──────────────────────────────────
+
+  async function listNotifications(req: Request, res: Response, next: NextFunction) {
+    try {
+      const qs = new URLSearchParams(req.query as Record<string, string>).toString();
+      const response = await fetch(`${notificationServiceUrl()}/notifications${qs ? `?${qs}` : ''}`, {
+        method: 'GET',
+        headers: { 'X-User-Id': req.headers['x-user-id'] as string || '' },
+      });
+      res.status(response.status).json(await response.json());
+    } catch (error) { next(error); }
+  }
+
+  async function markNotificationRead(req: Request, res: Response, next: NextFunction) {
+    try {
+      const response = await fetch(`${notificationServiceUrl()}/notifications/${req.params.id}/read`, {
+        method: 'PATCH',
+        headers: { 'X-User-Id': req.headers['x-user-id'] as string || '' },
+      });
+      res.status(response.status).json(await response.json());
+    } catch (error) { next(error); }
+  }
+
+  async function markAllNotificationsRead(req: Request, res: Response, next: NextFunction) {
+    try {
+      const response = await fetch(`${notificationServiceUrl()}/notifications/read-all`, {
+        method: 'PATCH',
+        headers: { 'X-User-Id': req.headers['x-user-id'] as string || '' },
       });
       res.status(response.status).json(await response.json());
     } catch (error) { next(error); }
@@ -170,11 +219,23 @@ export function createProxyRouter(): Router {
   router.patch('/api/tasks/:id/status', updateTaskStatus);
   router.patch('/tasks/:id/status', updateTaskStatus);
 
+  router.patch('/api/tasks/:id', editTask);
+  router.patch('/tasks/:id', editTask);
+
   router.delete('/api/tasks/:id', deleteTask);
   router.delete('/tasks/:id', deleteTask);
 
   router.post('/api/tasks/:id/comments', addComment);
   router.post('/tasks/:id/comments', addComment);
+
+  router.get('/api/notifications', listNotifications);
+  router.get('/notifications', listNotifications);
+
+  router.patch('/api/notifications/read-all', markAllNotificationsRead);
+  router.patch('/notifications/read-all', markAllNotificationsRead);
+
+  router.patch('/api/notifications/:id/read', markNotificationRead);
+  router.patch('/notifications/:id/read', markNotificationRead);
 
   return router;
 }
