@@ -23,6 +23,7 @@ beforeAll((done) => {
   userMock.use(express.json());
   userMock.post('/users', (req, res) => res.status(201).json({ id: 'abc', email: req.body.email }));
   userMock.post('/auth/login', (_req, res) => res.status(200).json({ token: 'jwt123' }));
+  userMock.get('/users', (_req, res) => res.status(200).json([{ id: 'u1', email: 'a@b.com' }]));
   userMock.get('/users/:id', (req, res) => res.status(200).json({ id: req.params.id, email: 'a@b.com' }));
 
   const taskMock = express();
@@ -70,7 +71,13 @@ describe('Proxy routing — user-service (public)', () => {
   });
 });
 
-describe('JWT middleware — task routes require valid token', () => {
+describe('JWT middleware — protected routes require valid token', () => {
+  it('GET /api/users without token → 401', async () => {
+    const res = await request(app).get('/api/users');
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ error: 'authorization header required' });
+  });
+
   it('POST /api/tasks without token → 401', async () => {
     const res = await request(app).post('/api/tasks').send({ title: 'x', assignee_id: 'u1' });
     expect(res.status).toBe(401);
@@ -94,6 +101,17 @@ describe('JWT middleware — task routes require valid token', () => {
       .send({ title: 'x', assignee_id: 'u1' });
     expect(res.status).toBe(401);
     expect(res.body).toEqual({ error: 'Token expired' });
+  });
+});
+
+describe('Proxy routing — user-service (protected)', () => {
+  it('GET /api/users with valid token → user-service/users', async () => {
+    const res = await request(app)
+      .get('/api/users')
+      .set('Authorization', `Bearer ${validToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([{ id: 'u1', email: 'a@b.com' }]);
   });
 });
 

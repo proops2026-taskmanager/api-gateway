@@ -39,6 +39,7 @@ Public (no JWT required):
   POST /api/auth/login     → user-service:3001/auth/login
 
 Protected (JWT required — validate, then inject headers):
+  GET    /api/users                → user-service:3001/users
   POST   /api/tasks                → task-service:3002/tasks
   GET    /api/tasks                → task-service:3002/tasks
   GET    /api/tasks/:id            → task-service:3002/tasks/:id
