@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 function isPublic(req: Request): boolean {
   if (req.method === 'POST' && req.path === '/users') return true;
   if (req.method === 'POST' && req.path === '/auth/login') return true;
+  if (req.method === 'GET' && req.path === '/users') return true;
   if (req.method === 'GET' && req.path.startsWith('/users/')) return true;
   return false;
 }

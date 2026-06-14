@@ -23,7 +23,7 @@ app.use((req, res, next) => {
 app.use(morgan('combined'));
 
 app.get('/health', (_req, res) => {
-  res.status(200).json({ status: 'ok', service: 'api-gateway' });
+  res.status(200).json({ status: 'ok' });
 });
 
 app.use('/api', jwtMiddleware);
