@@ -1,0 +1,54 @@
+# CI-only manifest — applied by reusable-deploy.yml into an ephemeral kind cluster
+# on every merge to main. Image tag is patched post-apply via `kubectl set image`.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      containers:
+        - name: api-gateway
+          image: ghcr.io/proops2026-taskmanager/api-gateway:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: api-gateway-secret
+                  key: JWT_SECRET
+            - name: PORT
+              value: "8080"
+            - name: USER_SERVICE_URL
+              value: "http://user-service:3001"
+            - name: TASK_SERVICE_URL
+              value: "http://task-service:3002"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
